@@ -9,8 +9,6 @@ books_blueprint = Blueprint('books', __name__)
 
 books = []
 
-
-
 @books_blueprint.route('/books', methods=['GET'])
 def get_books():
     """
@@ -139,7 +137,7 @@ def get_book(book_id):  # book_id הוא מחרוזת UUIDdef get_book(book_id):
 @books_blueprint.route('/books/<book_id>', methods=['DELETE'])
 def delete_book(book_id):
     """
-    Delete a book by ID
+    Delete a book by ID if it's not currently borrowed
     ---
     parameters:
       - name: book_id
@@ -150,14 +148,85 @@ def delete_book(book_id):
       200:
         description: Book deleted successfully
       404:
-        description: Book not found
+        description: Book not found or is currently borrowed
     """
     db = MongoConnectionHolder.get_db()
-    books_collection = db['books']
 
-    result = books_collection.delete_one({"_id": book_id})
+    borrowed = db['borrows'].find_one({"book_id": book_id, "status": {"$in": ["pending", "approved"]}})
+    if borrowed:
+        return jsonify({"error": "Cannot delete book that is currently borrowed or pending approval"}), 400
+
+    result = db['books'].delete_one({"_id": book_id})
 
     if result.deleted_count == 0:
         return jsonify({"error": "Book not found"}), 404
 
     return jsonify({"message": "Book deleted successfully"}), 200
+
+
+
+@books_blueprint.route('/books/<book_id>', methods=['PUT'])
+def update_book(book_id):
+    """
+    Update a book's information
+    ---
+    parameters:
+      - name: book_id
+        in: path
+        type: string
+        required: true
+        description: The ID of the book to update
+      - name: body
+        in: body
+        required: true
+        schema:
+          properties:
+            title:
+              type: string
+            author:
+              type: string
+            price:
+              type: number
+            stock:
+              type: integer
+            category:
+              type: string
+    responses:
+      200:
+        description: Book updated successfully
+      404:
+        description: Book not found
+    """
+    db = MongoConnectionHolder.get_db()
+    updated_data = request.json
+
+    # עדכון רק של שדות קיימים
+    update_fields = {k: v for k, v in updated_data.items() if k in ['title', 'author', 'price', 'stock', 'category']}
+
+    result = db['books'].update_one({"_id": book_id}, {"$set": update_fields})
+
+    if result.matched_count == 0:
+        return jsonify({"error": "Book not found"}), 404
+
+    return jsonify({"message": "Book updated successfully"}), 200
+
+
+@books_blueprint.route('/books/available', methods=['GET'])
+def get_available_books():
+    """
+    Get all available books (in stock)
+    ---
+    responses:
+      200:
+        description: List of books with stock > 0
+    """
+    db = MongoConnectionHolder.get_db()
+    books_collection = db['books']
+
+    # שליפת ספרים עם מלאי גדול מ-0
+    available_books = list(books_collection.find({"stock": {"$gt": 0}}))
+
+    for book in available_books:
+        book['_id'] = str(book['_id'])
+
+    return jsonify(available_books), 200

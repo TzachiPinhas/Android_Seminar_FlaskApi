@@ -2,3 +2,4 @@ flask
 flasgger
 pymongo # If you are using MongoDB
 python-dotenv # If you are using environment variables
+flask-bcrypt

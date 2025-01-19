@@ -4,112 +4,6 @@ from flask import Blueprint, request, jsonify
 from mongodb_connection_manager import MongoConnectionHolder
 import datetime
 
-
-borrow_blueprint = Blueprint('borrow', __name__)
-db = MongoConnectionHolder.get_db()
-
-
-@borrow_blueprint.route('/request-borrow', methods=['POST'])
-def request_borrow():
-    """
-    Request to borrow a book
-    ---
-    tags:
-      - Borrow
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            user_id:
-              type: string
-              description: ID of the user requesting the book
-            book_id:
-              type: string
-              description: ID of the book to borrow
-    responses:
-      201:
-        description: Borrow request submitted
-      400:
-        description: Missing user ID or book ID, or book out of stock
-      404:
-        description: Book or user not found
-    """
-    data = request.get_json()
-    user_id = data.get('user_id')
-    book_id = data.get('book_id')
-
-    if not user_id or not book_id:
-        return jsonify({"error": "User ID and Book ID are required"}), 400
-
-    user = db['users'].find_one({"_id": user_id})
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    book = db['books'].find_one({"_id": book_id})
-    if not book:
-        return jsonify({"error": "Book not found"}), 404
-
-    if book['stock'] <= 0:
-        return jsonify({"error": "Book is out of stock"}), 400
-
-    # עדכון מלאי והוספת השאלה עם סטטוס "pending"
-    db['books'].update_one({"_id": book_id}, {"$inc": {"stock": -1}})
-
-    borrow_entry = {
-        "user_id": user_id,
-        "username": user['username'],
-        "book_id": book_id,
-        "requested_at": datetime.datetime.utcnow(),
-        "status": "pending"
-    }
-
-    db['borrows'].insert_one(borrow_entry)
-    return jsonify({"message": "Borrow request submitted"}), 201
-
-
-@borrow_blueprint.route('/my-borrows/<user_id>', methods=['GET'])
-def get_my_borrows(user_id):
-    """
-    Get my borrow records
-    ---
-    tags:
-      - Borrow
-    parameters:
-      - in: path
-        name: user_id
-        required: true
-        type: string
-        description: ID of the user to get borrow records for
-    responses:
-      200:
-        description: List of user's borrows
-      404:
-        description: User not found
-    """
-    user = db['users'].find_one({"_id": user_id})
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    borrows = list(db['borrows'].find({"user_id": user_id}))
-
-    if not borrows:
-        return jsonify({"message": "No borrow records found"}), 200
-
-    for borrow in borrows:
-        borrow['_id'] = str(borrow['_id'])
-        borrow['book_id'] = str(borrow['book_id'])
-        borrow['borrowed_at'] = borrow['borrowed_at'].strftime("%Y-%m-%d %H:%M:%S")
-
-    return jsonify(borrows), 200
-
-
-from flask import Blueprint, request, jsonify
-from mongodb_connection_manager import MongoConnectionHolder
-import datetime
-from bson import ObjectId
-
 borrow_blueprint = Blueprint('borrow', __name__)
 db = MongoConnectionHolder.get_db()
 
@@ -169,12 +63,12 @@ def request_borrow():
 
     # יצירת בקשת השאלה עם סטטוס התחלתי "pending"
     borrow = {
-        "_id": str(
-            uuid.uuid4()),  # שימוש ב-UUID ייחודי
+        "_id": str(uuid.uuid4()),  # שימוש ב-UUID ייחודי
         "user_id": user_id,
         "username": user['username'],
         "book_id": book_id,
-        "borrowed_at": datetime.datetime.utcnow(),
+        "book_title": book['title'] if 'title' in book else "Unknown",
+        "borrowed_at": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         "status": "pending"
     }
 
@@ -240,9 +134,15 @@ def get_my_borrows(user_id):
     borrows = list(db['borrows'].find({"user_id": user_id}))
 
     for borrow in borrows:
+        book = db['books'].find_one({"_id": borrow['book_id']})
+        borrow['book_title'] = book['title'] if book else "Unknown"
         borrow['_id'] = str(borrow['_id'])
         borrow['book_id'] = str(borrow['book_id'])
-        borrow['borrowed_at'] = borrow['borrowed_at'].strftime("%Y-%m-%d %H:%M:%S")
+        # בדיקה אם התאריך כבר מחרוזת, אם לא - המר אותו לפורמט הנכון
+        if isinstance(borrow['borrowed_at'], datetime.datetime):
+            borrow['borrowed_at'] = borrow['borrowed_at'].strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            borrow['borrowed_at'] = str(borrow['borrowed_at'])  # שמירה על הערך הקיים אם כבר מחרוזת        borrow['status'] = borrow['status']
 
     return jsonify(borrows), 200
 
@@ -299,10 +199,21 @@ def get_all_borrows():
     borrows = list(db['borrows'].find())
 
     for borrow in borrows:
+        book = db['books'].find_one({"_id": borrow['book_id']})
+        user = db['users'].find_one({"_id": borrow['user_id']})  # שליפת שם המשתמש
+
+        borrow['book_title'] = book['title'] if book else "Unknown"
+        borrow['username'] = user['username'] if user else "Unknown"  # הוספת שם המשתמש
+
         borrow['_id'] = str(borrow['_id'])
         borrow['book_id'] = str(borrow['book_id'])
-        borrow['borrowed_at'] = borrow['borrowed_at'].strftime("%Y-%m-%d %H:%M:%S")
+        borrow['user_id'] = str(borrow['user_id'])
 
+        if isinstance(borrow['borrowed_at'], datetime.datetime):
+            borrow['borrowed_at'] = borrow['borrowed_at'].strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            borrow['borrowed_at'] = str(borrow['borrowed_at'])  # שמירה על הערך הקיים אם כבר מחרוזת
 
+        borrow['status'] = borrow['status']
 
     return jsonify(borrows), 200

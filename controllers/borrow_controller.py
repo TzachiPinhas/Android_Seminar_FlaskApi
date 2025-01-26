@@ -58,7 +58,7 @@ def request_borrow():
     )
 
     borrow = {
-        "_id": str(uuid.uuid4()),  # שימוש ב-UUID ייחודי
+        "_id": str(uuid.uuid4()),
         "user_id": user_id,
         "username": user['username'],
         "book_id": book_id,
@@ -102,11 +102,10 @@ def get_my_borrows(user_id):
         borrow['book_title'] = book['title'] if book else "Unknown"
         borrow['_id'] = str(borrow['_id'])
         borrow['book_id'] = str(borrow['book_id'])
-        # בדיקה אם התאריך כבר מחרוזת, אם לא - המר אותו לפורמט הנכון
         if isinstance(borrow['borrowed_at'], datetime.datetime):
             borrow['borrowed_at'] = borrow['borrowed_at'].strftime("%Y-%m-%d %H:%M:%S")
         else:
-            borrow['borrowed_at'] = str(borrow['borrowed_at'])  # שמירה על הערך הקיים אם כבר מחרוזת        borrow['status'] = borrow['status']
+            borrow['borrowed_at'] = str(borrow['borrowed_at'])  #         borrow['status'] = borrow['status']
 
     return jsonify(borrows), 200
 
@@ -138,7 +137,6 @@ def approve_borrow(borrow_id):
     if borrow["status"] != "pending":
         return jsonify({"error": "Only pending requests can be approved"}), 400
 
-    # עדכון סטטוס להשאלה מאושרת
     db['borrows'].update_one({"_id": borrow_id}, {"$set": {"status": "approved"}})
 
     return jsonify({"message": "Borrow request approved"}), 200
@@ -174,10 +172,9 @@ def return_book(borrow_id):
     if borrow["status"] != "approved":
         return jsonify({"error": "Only approved borrow requests can be returned"}), 400
 
-    # עדכון סטטוס להשאלה כהוחזרה
     db['borrows'].update_one({"_id": borrow_id}, {"$set": {"status": "returned"}})
 
-    # הגדלת כמות המלאי של הספר שהוחזר
+
     db['books'].update_one({"_id": borrow["book_id"]}, {"$inc": {"stock": 1}})
 
     return jsonify({"message": "Book returned successfully"}), 200
@@ -198,10 +195,10 @@ def get_all_borrows():
 
     for borrow in borrows:
         book = db['books'].find_one({"_id": borrow['book_id']})
-        user = db['users'].find_one({"_id": borrow['user_id']})  # שליפת שם המשתמש
+        user = db['users'].find_one({"_id": borrow['user_id']})
 
         borrow['book_title'] = book['title'] if book else "Unknown"
-        borrow['username'] = user['username'] if user else "Unknown"  # הוספת שם המשתמש
+        borrow['username'] = user['username'] if user else "Unknown"
 
         borrow['_id'] = str(borrow['_id'])
         borrow['book_id'] = str(borrow['book_id'])
@@ -210,7 +207,7 @@ def get_all_borrows():
         if isinstance(borrow['borrowed_at'], datetime.datetime):
             borrow['borrowed_at'] = borrow['borrowed_at'].strftime("%Y-%m-%d %H:%M:%S")
         else:
-            borrow['borrowed_at'] = str(borrow['borrowed_at'])  # שמירה על הערך הקיים אם כבר מחרוזת
+            borrow['borrowed_at'] = str(borrow['borrowed_at'])
 
         borrow['status'] = borrow['status']
 

@@ -3,10 +3,8 @@ from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 import os
 
-# טוען את משתני הסביבה מהקובץ .env
 load_dotenv()
 
-# משתני סביבה לחיבור למסד הנתונים
 DB_USERNAME = os.getenv("DB_USERNAME")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING")

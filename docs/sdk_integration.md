@@ -125,13 +125,6 @@ libraryController.requestBorrow(borrowRequest, new LibraryController.LibraryCall
 
 The example Android application demonstrates how to use the `booksLib` SDK in practice.
 
-### Features of the Example App:
-
-- **Sign in:** User registration and login.
-- **View available books:** Browse the library catalog.
-- **Borrow books:** Request books from the catalog.
-- **Borrowing history:** Track user's borrowing activity.
-
 ## Running the Example Application
 
 The example application and the SDK library can be found in the following repository:

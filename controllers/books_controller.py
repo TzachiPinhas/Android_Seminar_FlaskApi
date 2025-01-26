@@ -3,7 +3,6 @@ from mongodb_connection_manager import MongoConnectionHolder
 import uuid
 
 
-# יצירת Blueprint עבור הנתיבים
 books_blueprint = Blueprint('books', __name__)
 
 
@@ -91,23 +90,22 @@ def add_book():
               type: string
               example: "Missing or empty field: title"
     """
-    db = MongoConnectionHolder.get_db()  # חיבור למסד הנתונים
+    db = MongoConnectionHolder.get_db()
     new_book = request.json
-    new_book['_id'] = str(uuid.uuid4())  # יצירת ID אוטומטי
+    new_book['_id'] = str(uuid.uuid4())
 
     required_fields = ['title', 'author', 'price', 'stock', 'category']
     for field in required_fields:
         if not new_book.get(field):
             return jsonify({"error": f"Missing or empty field: {field}"}), 400
 
-    # הכנסת הספר למסד הנתונים
     db.books.insert_one(new_book)
     return jsonify(new_book), 201
 
 
 
 @books_blueprint.route('/books/<book_id>', methods=['GET'])
-def get_book(book_id):  # book_id הוא מחרוזת UUIDdef get_book(book_id):
+def get_book(book_id):
     """
     Get a specific book by ID
     ---
@@ -200,7 +198,6 @@ def update_book(book_id):
     db = MongoConnectionHolder.get_db()
     updated_data = request.json
 
-    # עדכון רק של שדות קיימים
     update_fields = {k: v for k, v in updated_data.items() if k in ['title', 'author', 'price', 'stock', 'category']}
 
     result = db['books'].update_one({"_id": book_id}, {"$set": update_fields})

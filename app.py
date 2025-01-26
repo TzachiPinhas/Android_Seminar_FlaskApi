@@ -7,10 +7,8 @@ import os
 app = Flask(__name__)
 Swagger(app)
 
-# חיבור למסד הנתונים
 MongoConnectionHolder.initialize_db()
 
-# רישום הנתיבים
 initial_routes(app)
 
 @app.route('/')

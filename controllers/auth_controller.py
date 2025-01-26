@@ -6,15 +6,12 @@ from bson import ObjectId
 
 import os
 
-# יצירת Blueprint לאימות משתמשים
 auth_blueprint = Blueprint('auth', __name__)
 bcrypt = Bcrypt()
 db = MongoConnectionHolder.get_db()
 
-# מפתח סודי ליצירת JWT
 SECRET_KEY = os.getenv("SECRET_KEY", "mysecretkey")
 
-# 📥 הרשמה
 @auth_blueprint.route('/register', methods=['POST'])
 def register():
     """
@@ -53,7 +50,6 @@ def register():
     if db['users'].find_one({"username": username}):
         return jsonify({"error": "Username already exists"}), 400
 
-    # יצירת מזהה ייחודי ואבטחת סיסמה
     user_id = str(ObjectId())
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
@@ -66,7 +62,6 @@ def register():
 
     return jsonify({"message": "User registered successfully!", "user_id": user_id}), 201
 
-# 🔑 התחברות
 @auth_blueprint.route('/login', methods=['POST'])
 def login():
     """

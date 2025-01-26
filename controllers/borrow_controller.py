@@ -41,27 +41,22 @@ def request_borrow():
     if not user_id or not book_id:
         return jsonify({"error": "User ID and Book ID are required"}), 400
 
-    # בדיקת קיום המשתמש
     user = db['users'].find_one({"_id": user_id})
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # בדיקת קיום הספר
     book = db['books'].find_one({"_id": book_id})
     if not book:
         return jsonify({"error": "Book not found"}), 404
 
-    # בדיקת מלאי
     if book['stock'] <= 0:
         return jsonify({"error": "Book is out of stock"}), 400
 
-    # עדכון מלאי - הפחתת עותק אחד מהמלאי
     db['books'].update_one(
         {"_id": book_id},
         {"$inc": {"stock": -1}}
     )
 
-    # יצירת בקשת השאלה עם סטטוס התחלתי "pending"
     borrow = {
         "_id": str(uuid.uuid4()),  # שימוש ב-UUID ייחודי
         "user_id": user_id,
@@ -75,37 +70,6 @@ def request_borrow():
     db['borrows'].insert_one(borrow)
     return jsonify({"message": "Borrow request submitted"}), 201
 
-
-@borrow_blueprint.route('/admin/approve-borrow/<borrow_id>', methods=['PUT'])
-def approve_borrow(borrow_id):
-    """
-    Approve a borrow request
-    ---
-    tags:
-      - Admin
-    parameters:
-      - in: path
-        name: borrow_id
-        required: true
-        description: ID of the borrow request
-    responses:
-      200:
-        description: Borrow request approved
-      404:
-        description: Borrow request not found
-    """
-    borrow = db['borrows'].find_one({"_id": borrow_id})
-
-    if not borrow:
-        return jsonify({"error": "Borrow request not found"}), 404
-
-    if borrow["status"] != "pending":
-        return jsonify({"error": "Only pending requests can be approved"}), 400
-
-    # עדכון סטטוס להשאלה מאושרת
-    db['borrows'].update_one({"_id": borrow_id}, {"$set": {"status": "approved"}})
-
-    return jsonify({"message": "Borrow request approved"}), 200
 
 
 @borrow_blueprint.route('/my-borrows/<user_id>', methods=['GET'])
@@ -145,6 +109,40 @@ def get_my_borrows(user_id):
             borrow['borrowed_at'] = str(borrow['borrowed_at'])  # שמירה על הערך הקיים אם כבר מחרוזת        borrow['status'] = borrow['status']
 
     return jsonify(borrows), 200
+
+
+
+@borrow_blueprint.route('/admin/approve-borrow/<borrow_id>', methods=['PUT'])
+def approve_borrow(borrow_id):
+    """
+    Approve a borrow request
+    ---
+    tags:
+      - Admin
+    parameters:
+      - in: path
+        name: borrow_id
+        required: true
+        description: ID of the borrow request
+    responses:
+      200:
+        description: Borrow request approved
+      404:
+        description: Borrow request not found
+    """
+    borrow = db['borrows'].find_one({"_id": borrow_id})
+
+    if not borrow:
+        return jsonify({"error": "Borrow request not found"}), 404
+
+    if borrow["status"] != "pending":
+        return jsonify({"error": "Only pending requests can be approved"}), 400
+
+    # עדכון סטטוס להשאלה מאושרת
+    db['borrows'].update_one({"_id": borrow_id}, {"$set": {"status": "approved"}})
+
+    return jsonify({"message": "Borrow request approved"}), 200
+
 
 
 @borrow_blueprint.route('/admin/return/<borrow_id>', methods=['PUT'])

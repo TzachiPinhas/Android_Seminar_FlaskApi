@@ -1,5 +1,6 @@
 flask
+flask-cors
 flasgger
-pymongo # If you are using MongoDB
-python-dotenv # If you are using environment variables
+pymongo
+python-dotenv
 flask-bcrypt
